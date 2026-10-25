@@ -1,0 +1,22 @@
+local GuiService = game:GetService("GuiService")
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+
+local player = Players.LocalPlayer
+local teleporting = false
+
+local function onErrorMessageChanged(errorMessage)
+    if errorMessage and errorMessage ~= "" and not teleporting then
+        teleporting = true
+        print("Error detected: " .. errorMessage)
+
+        if player then
+            task.wait(5)
+            pcall(function()
+                TeleportService:Teleport(game.PlaceId, player)
+            end)
+        end
+    end
+end
+
+GuiService.ErrorMessageChanged:Connect(onErrorMessageChanged)
