@@ -1,0 +1,113 @@
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- Box corners (whitelist area)
+local corner1 = Vector3.new(-260, 0, -336)
+local corner2 = Vector3.new(232, 0, -349)
+local corner3 = Vector3.new(251, 0, -923)
+local corner4 = Vector3.new(-232, 0, -930)
+local skyY = 22 -- Y scale
+
+-- Compute box bounds
+local minX = math.min(corner1.X, corner2.X, corner3.X, corner4.X)
+local maxX = math.max(corner1.X, corner2.X, corner3.X, corner4.X)
+local minZ = math.min(corner1.Z, corner2.Z, corner3.Z, corner4.Z)
+local maxZ = math.max(corner1.Z, corner2.Z, corner3.Z, corner4.Z)
+local minY = 0
+local maxY = skyY
+
+-- Tween settings
+local TWEEN_SPEED = 50 -- changed from 34 to 26
+local WAIT_TIME = 30
+local PLAYER_OFFSET = Vector3.new(0,0,-2)
+
+-- Check if a position is inside the whitelist box
+local function isInsideBox(pos)
+    return pos.X >= minX and pos.X <= maxX
+       and pos.Y >= minY and pos.Y <= maxY
+       and pos.Z >= minZ and pos.Z <= maxZ
+end
+
+-- Find DoorTouch parts inside the whitelist box only
+local function findValidDoors()
+    local doors = {}
+    for _, part in ipairs(Workspace:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name == "DoorTouch" and part.BrickColor.Name == "Reddish brown" then
+            if isInsideBox(part.Position) then
+                table.insert(doors, part)
+            end
+        end
+    end
+    return doors
+end
+
+-- Tween to a door
+local function tweenTo(hrp, part)
+    local success, err = pcall(function()
+        if not part or not part.Parent then return end
+        local targetPos = part.Position + PLAYER_OFFSET
+        local distance = (hrp.Position - targetPos).Magnitude
+        local duration = distance / TWEEN_SPEED
+        local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
+        tween:Play()
+        tween.Completed:Wait()
+    end)
+    if not success then warn("Tween failed:", err) end
+end
+
+-- Automatically enable noclip for character parts
+RunService.Stepped:Connect(function()
+    for _, v in pairs(character:GetChildren()) do
+        if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+            v.CanCollide = false
+        end
+    end
+end)
+
+-- Notifications
+local function sendNotification(title, text, duration)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = duration or 5,
+    })
+end
+
+task.spawn(function()
+    sendNotification("Notice 1/4", "You need to equip trick or treat bag for it to work and recommended using auto clicker for jump every 20seconds", 4)
+    task.wait(4.5)
+    sendNotification("Notice 2/4", "This script never stops and it requires rejoin to stop it", 4)
+    task.wait(6)
+    sendNotification("Notice 3/4", "You have to go near B3 house for it to fully work", 1.5)
+    task.wait(2)
+    sendNotification("Notice 4/4", "Subscribe to Pebble Hacker for more script videos", 1.5)
+end)
+
+-- Main loop
+local function runTweenSequence(character)
+    local hrp = character:WaitForChild("HumanoidRootPart")
+    while true do
+        local doors = findValidDoors()
+        if #doors == 0 then
+            warn("No doors inside the whitelist box!")
+            task.wait(1)
+        else
+            for _, door in ipairs(doors) do
+                tweenTo(hrp, door)
+                task.wait(WAIT_TIME)
+            end
+        end
+    end
+end
+
+player.CharacterAdded:Connect(runTweenSequence)
+if player.Character then
+    runTweenSequence(player.Character)
+end
