@@ -1,0 +1,31 @@
+-- Save this script into your Delta autoexecute folder.
+-- It actively monitors your character and forces them to jump out of any seat instantly.
+
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Function to handle the jump-out logic
+local function monitorCharacter(character)
+    local humanoid = character:WaitForChild("Humanoid", 10)
+    if not humanoid then return end
+
+    -- Triggers instantly whenever the character's state changes (like sitting)
+    humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+        if humanoid.Sit then
+            task.wait() -- Small delay to prevent physics glitches
+            humanoid.Jump = true
+        end
+    end)
+end
+
+-- Monitor current character
+if LocalPlayer.Character then
+    task.spawn(monitorCharacter, LocalPlayer.Character)
+end
+
+-- Monitor future characters when you respawn or change servers
+LocalPlayer.CharacterAdded:Connect(function(character)
+    monitorCharacter(character)
+end)
