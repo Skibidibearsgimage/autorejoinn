@@ -1,0 +1,66 @@
+-- MM2 Failsafe Anti-Steal Script
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+print("[Anti-Steal v2] Booting script... Scanning memory layers.")
+
+-- 1. DYNAMIC NETWORK SCANNER (Prevents script getting stuck/infinite loading)
+local tradeFolder = ReplicatedStorage:FindFirstChild("Trade") or ReplicatedStorage:WaitForChild("Trade", 5)
+
+if not tradeFolder then
+    warn("[Anti-Steal v2] CRITICAL: 'Trade' folder not found in ReplicatedStorage yet. Is the game fully loaded?")
+    -- Fallback: Loop until it finds it
+    task.spawn(function()
+        while not tradeFolder do
+            tradeFolder = ReplicatedStorage:FindFirstChild("Trade")
+            task.wait(0.5)
+        end
+        print("[Anti-Steal v2] Found Trade folder late. Activating listeners.")
+    end)
+end
+
+-- 2. UNIVERSAL DECLINE FUNCTION
+local function forceSystemDecline()
+    if not tradeFolder then return end
+    pcall(function()
+        -- Loop through EVERY RemoteEvent or RemoteFunction inside the Trade folder
+        for _, child in ipairs(tradeFolder:GetChildren()) do
+            if child:IsA("RemoteFunction") then
+                -- Brute force common decline parameters to all functions
+                child:InvokeServer(false)
+                child:InvokeServer("Decline")
+                child:InvokeServer("Cancel")
+            elseif child:IsA("RemoteEvent") then
+                child:FireServer(false)
+                child:FireServer("Decline")
+                child:FireServer("Cancel")
+            end
+        end
+    end)
+end
+
+-- 3. THE INSTANT DISCONNECT LOOP (Failsafe)
+-- Instead of waiting for an incoming event packet, we watch the player UI state continuously
+task.spawn(function()
+    print("[Anti-Steal v2] Background Failsafe Thread Active.")
+    while task.wait(0.1) do -- Checks 10 times a second
+        local playerGui = localPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            -- Search through your UI for anything named Trade or Request
+            for _, gui in ipairs(playerGui:GetChildren()) do
+                if gui.Name:lower():find("trade") or gui.Name:lower():find("request") then
+                    print("[Anti-Steal v2] Intercepted active Trade UI state! Forcing decline...")
+                    
+                    -- Spam decline to break the server attachment
+                    for i = 1, 10 do
+                        forceSystemDecline()
+                    end
+                    
+                    -- Wipe the window from your screen so a bot can't interact with it
+                    pcall(function() gui:Destroy() end)
+                end
+            end
+        end
+    end
+end)
